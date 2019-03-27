@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webfeed/webfeed.dart';
 import 'dart:math';
 import 'network.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 const swatch_1 = Color(0xff91a1b4);
 const swatch_2 = Color(0xffe3e6f3);
@@ -22,10 +23,98 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Latest news'),
+      onGenerateRoute: (RouteSettings settings) {
+        WidgetBuilder builder;
+
+        switch (settings.name) {
+          case '/':
+            builder =
+                (BuildContext context) => MyHomePage(title: 'Latest news');
+            break;
+          case '/show':
+            var args = settings.arguments;
+            if (args is RssItem) {
+              builder = (BuildContext context) =>
+                  ShowPage(
+                    title: args.title,
+                    content: args.content.value,
+                  );
+            }
+            break;
+        }
+
+        return MaterialPageRoute(
+            builder: builder,
+            settings: settings
+        );
+      },
     );
   }
 }
+
+class ShowPage extends StatefulWidget {
+  final String title;
+  final String content;
+
+  const ShowPage({Key key, this.title, this.content}) : super(key: key);
+
+  @override
+  _ShowPageState createState() => _ShowPageState();
+}
+
+class _ShowPageState extends State<ShowPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: swatch_3.withOpacity(0.5),
+        elevation: 0.0,
+        centerTitle: false,
+        leading: InkWell(
+          onTap: () {
+            Navigator.of(context).pop();
+          },
+          child: Icon(Icons.arrow_back_ios, color: Colors.black),
+        ),
+        title: Padding(
+          padding: EdgeInsets.only(left: 16.0),
+          child: Text(widget.title,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 30.0,
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          Padding(
+            padding: EdgeInsets.only(right: 32.0),
+            child: InkWell(
+              child: Icon(Icons.share,
+                color: swatch_1,
+              ),
+            ),
+          )
+        ],
+      ),
+      body: _body(),
+    );
+  }
+
+  Widget _body() {
+    var style = "<style>* { font-size: 65px !important;} img { width: 100% !important; height: auto !important;}</style>";
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.0),
+      child: WebView(
+        initialUrl: Uri.dataFromString(
+            style + widget.content, parameters: { 'charset': 'utf-8'},
+            mimeType: 'text/html')
+            .toString(),
+      ),
+    );
+  }
+}
+
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
@@ -175,69 +264,74 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _item(RssItem item) {
     var mediaUrl = _extractImage(item.content.value);
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.0),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        width: 42.0,
-                        height: 42.0,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(21.0),
-                          color: swatch_5,
-                        ),
-                        child: Center(
-                          child: Text(item.categories.first.value[0],
-                            style: TextStyle(
-                              color: Colors.white,
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pushNamed('/show', arguments: item);
+      },
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Container(
+                          width: 42.0,
+                          height: 42.0,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(21.0),
+                            color: swatch_5,
+                          ),
+                          child: Center(
+                            child: Text(item.categories.first.value[0],
+                              style: TextStyle(
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: 8.0),
-                      Text(item.categories.first.value,
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
+                        SizedBox(width: 8.0),
+                        Text(item.categories.first.value,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18.0,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ],
+                    ),
+                    Text(item.title,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 16.0,
                       ),
-                    ],
-                  ),
-                  Text(item.title,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16.0,
                     ),
-                  ),
-                  Text(item.dc.creator,
-                    style: TextStyle(
-                      color: swatch_4,
-                    ),
-                  )
-                ],
+                    Text(item.dc.creator,
+                      style: TextStyle(
+                        color: swatch_4,
+                      ),
+                    )
+                  ],
+                ),
               ),
-            ),
-            SizedBox(width: 16.0),
-            mediaUrl != null ? Container(
-              width: 120,
-              height: 120,
-              child: FadeInImage.assetNetwork(
-                placeholder: 'assets/item_1.jpg',
-                image: mediaUrl,
-                fit: BoxFit.cover,
-              ),
-            ): SizedBox(width: 0.0)
-          ],
+              SizedBox(width: 16.0),
+              mediaUrl != null ? Container(
+                width: 120,
+                height: 120,
+                child: FadeInImage.assetNetwork(
+                  placeholder: 'assets/item_1.jpg',
+                  image: mediaUrl,
+                  fit: BoxFit.cover,
+                ),
+              ) : SizedBox(width: 0.0)
+            ],
+          ),
         ),
       ),
     );
